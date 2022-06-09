@@ -12,18 +12,22 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import authReducer from './auth';
+import loadingReducer from './loading';
+import dialogReducer from './dialog';
 
 const persistConfig = {
   key: 'root',
   version: 1,
   storage: AsyncStorage,
-  whitelist: []
+  whitelist: ["auth"]
 };
 
 const persistedReducer = persistReducer(
   persistConfig, 
   combineReducers({
     auth: authReducer,
+    loading: loadingReducer,
+    dialog: dialogReducer,
   })
 )
 

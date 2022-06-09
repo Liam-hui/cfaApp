@@ -48,7 +48,7 @@ export default function Header({ children, back, noLogo, defaultBack }: { childr
 
           {!noLogo &&
             <FastImage
-              style={{ height: 36, width: 36 * 277 / 77  }}
+              style={{ height: 30, width: 30 * 1489 / 268  }}
               source={require("../assets/images/CFALogo.png")}
             />
           }

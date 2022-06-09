@@ -7,13 +7,11 @@ import MyWebView from '@/components/MyWebView';
 import Icon from '@/components/Icon';
 import { HOST } from '@/constants';
 
-export default function EventsScreen() {
-
-  const navigation = useNavigation<StackNavigationProp<any>>();
-
+export default function EnrolledEventsScreen() {
+  
   return (
     <MyWebView
-      uri={`${HOST}/event-calendar/`}
+      uri={`${HOST}/enrolled-events/`}
       // headerAction={
       //   <TouchableOpacity
       //     style={{
@@ -32,11 +30,11 @@ export default function EventsScreen() {
       //     />
       //   </TouchableOpacity>
       // }
-      // addCss={`
-      //   .search_events {
-      //     display: none !important; 
-      //   }
-      // `}
+      addCss={`
+        .search-nav, .search_events {
+          display: none !important; 
+        }
+      `}
     />
   );
 }

@@ -6,6 +6,7 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import HomeScreen from '../screens/HomeScreen';
 import CareersScreen from '../screens/CareersScreen';
 import EventsScreen from '../screens/EventsScreen';
+import EnrolledEventsScreen from '../screens/EnrolledEventsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MenuScreen from '../screens/MenuScreen';
 import { Text } from '@/components/Themed';
@@ -20,6 +21,7 @@ const Tabs = () => {
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
+        lazy: false,
       }}
       tabBar={(props) => TabBar(props)}
     >
@@ -29,29 +31,29 @@ const Tabs = () => {
           options={{ title: "Home" }}
         />
         <BottomTab.Screen
-            name="career"
-            component={CareersScreen}
-            options={{ title: "Careers" }}
+          name="career"
+          component={CareersScreen}
+          options={{ title: "Careers" }}
         />
         <BottomTab.Screen
-            name="events"
-            component={EventsScreen}
-            options={{ title: "Events" }}
+          name="events"
+          component={EventsScreen}
+          options={{ title: "Events" }}
         />
         <BottomTab.Screen
-            name="enrolled"
-            component={HomeScreen}
-            options={{ title: "Enrolled Events" }}
+          name="enrolled"
+          component={EnrolledEventsScreen}
+          options={{ title: "Enrolled Events" }}
         />
         <BottomTab.Screen
-            name="profile"
-            component={ProfileScreen}
-            options={{ title: "Profile" }}
+          name="profile"
+          component={ProfileScreen}
+          options={{ title: "Profile" }}
         />
          <BottomTab.Screen
-            name="menu"
-            component={MenuScreen}
-            options={{ title: "Menu" }}
+          name="menu"
+          component={MenuScreen}
+          options={{ title: "Menu" }}
         />
     </BottomTab.Navigator>
   );

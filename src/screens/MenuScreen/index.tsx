@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, TouchableOpacity } from 'react-native';
+import { View, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -10,10 +10,17 @@ import Banner from '@/components/Banner';
 
 import Header from '@/components/Header';
 import { Link, Sep } from './styles';
+import { signOut } from '@/store/auth';
+import { useAppDispatch } from '@/hooks';
 
 export default function MenuScreen() {
 
+  const dispatch = useAppDispatch();
   const navigation = useNavigation<StackNavigationProp<any>>();
+
+  const onSignOutButtonPress = () => {
+    dispatch(signOut());
+  }
   
   return (
     <View style={{ flex: 1 }}>
@@ -21,7 +28,7 @@ export default function MenuScreen() {
         // back={canBack ? () => webViewRef.current!.goBack() : undefined }
       >
       </Header>
-      <View style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
         <Banner
           title="Menu"
           image={require("../../assets/images/menuBanner.png")}
@@ -73,9 +80,12 @@ export default function MenuScreen() {
               icon={require("../../assets/icons/icon-wechat.png")}
             />
           </View>
+          <Link as={TouchableOpacity} style={{ marginTop: 10 }} onPress={onSignOutButtonPress}>
+            <Text>Log Out</Text>
+          </Link>
           <Text style={{ fontSize: 12, marginTop: 30 }}>©️ 2022 CFA Society Hong Kong. All Rights Reserved.</Text>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }

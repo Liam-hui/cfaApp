@@ -10,6 +10,7 @@ declare global {
 
 export type MainStackParamList = {
   Root: NavigatorScreenParams<TabsParamList> | undefined;
+  Verify: undefined,
   EventsSearch: undefined,
   WebView: { uri: string },
 };

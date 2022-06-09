@@ -1,27 +1,38 @@
-import React, { useState, createRef, useEffect } from 'react';
-import { View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, createRef, useEffect, useCallback } from 'react';
+import { View, ActivityIndicator, ScrollView, Platform, RefreshControl, Linking } from 'react-native';
 import WebView from 'react-native-webview';
 
+import { RootState } from '@/store';
+import { useAppDispatch, useAppSelector } from '@/hooks';
 import Colors from '@/constants/Colors';
 import Header from '@/components/Header';
-import { Text } from './Themed';
+import { signOut } from '@/store/auth';
+import { HOST } from '@/constants';
+import { useIsFocused } from '@react-navigation/native';
 
-export default function MyWebView ({ uri, headerAction, addCss, noLogo, defaultBack }: { uri: string, headerAction?: React.ReactNode, addCss?: string, noLogo?: boolean, defaultBack?: boolean }) {
+export default function MyWebView ({ headerAction, addCss, addJsCode, noLogo, defaultBack, ...props }: { uri: string | null, headerAction?: React.ReactNode, addCss?: string, addJsCode?: string, noLogo?: boolean, defaultBack?: boolean }) {
+  
+  const dispatch = useAppDispatch();
+  const isFocused = useIsFocused();
+  const jwt = useAppSelector((state: RootState) => state.auth.jwt);
+
   const webViewRef: React.RefObject<WebView> = createRef();
+  const REDIRECT_URI = `${HOST}/?rest_route=/simple-jwt-login/v1/autologin&JWT=${jwt}&redirectUrl=${props.uri}`;
   const [canBack, setCanBack] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [isHidden, setIsHidden] = useState(false);
+  const [isInited, setIsInited] = useState(false);
+  const [loadingState, setLoadingState] = useState<|"loading"|"error"|"success">("loading");
 
   useEffect(() => {
-    setIsHidden(true);
-    setTimeout(
-      () => setIsHidden(false)
-    , 50)
-  }, [uri])
+    if (isFocused && isInited) {
+      webViewRef.current?.injectJavaScript(`
+        if (window.history.length > 1)
+          window.history.go(-(window.history.length - 1));
+      `);
+    }
+  }, [isFocused])
 
   const css = `
-    .em40_header_area_main, .dialog-message, .footer-middle { 
+    .mobile_logo_area, .dialog-message, .footer-middle { 
       display: none !important; 
     }
     ${addCss ?? ""}
@@ -32,9 +43,31 @@ export default function MyWebView ({ uri, headerAction, addCss, noLogo, defaultB
     style.type = 'text/css';
     style.appendChild(document.createTextNode('${css.replace(/[\r\n]+/g," ")}'));
     document.head.appendChild(style);
-  `;
 
-  // window.ReactNativeWebView.postMessage("sddf");
+    window.onscroll = function() {
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          type: "scroll",
+          value: document.documentElement.scrollTop || document.body.scrollTop
+        }),     
+      )
+    }
+
+    ${addJsCode ?? ""}
+
+    window.ReactNativeWebView.postMessage(
+      JSON.stringify({
+        type: "finished"
+      }),
+    );
+
+    window.ReactNativeWebView.postMessage(
+      JSON.stringify({
+        type: "response",
+        value: document.getElementsByTagName("pre")[0].innerHTML,
+      }),     
+    );
+  `;
       
   // setTimeout(() => {
   //   window.ReactNativeWebView.postMessage(document.querySelectorAll('.elementor-widget-container').length);
@@ -57,63 +90,108 @@ export default function MyWebView ({ uri, headerAction, addCss, noLogo, defaultB
   //     }
   //   });
   // `;
+
+  const [isRefreshEnabled, setIsRefreshEnabled] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    webViewRef.current?.reload();
+  }
   
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <Header
         defaultBack={defaultBack && !canBack}
-        back={canBack ? () => webViewRef.current!.goBack() : undefined }
+        back={canBack ? () => webViewRef.current?.goBack() : undefined }
         noLogo={noLogo}
       >
         {headerAction}
       </Header>
-      <View style={{ flex: 1 }}>
-        {!isError && !isHidden &&
-          <WebView 
-            ref={webViewRef}
-            bounces={false}
-            source={{ uri: uri }} 
-            allowsBackForwardNavigationGestures
-            injectedJavaScript={jsCode}
-            javaScriptEnabled={true}
-            onMessage={(event) => {
-              console.log(event.nativeEvent.data);
-            }}
-            onNavigationStateChange={(navState) => {
-              setCanBack!(navState.canGoBack);
-            }}
-            onLoadStart={() => {
-              setIsLoading(true);
-            }}
-            onLoadEnd={() => {
-              setIsLoading(false);
-            }}
-            onError={() => {
-              setIsError(true);
-            }}
+      <ScrollView 
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flex: 1 }}
+        refreshControl={
+          <RefreshControl
+            enabled={isRefreshEnabled}
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
           />
         }
-        {/* {isHidden &&
-          <View style={{ position: "absolute", width: "100%", height: "100%", backgroundColor: "red" }}/>
-        } */}
-        {isLoading && 
+      >
+        <WebView 
+          ref={webViewRef}
+          bounces={false}
+          source={{ 
+            uri: REDIRECT_URI,
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+            }
+          }} 
+          style={{ flex: 1, opacity: loadingState == "success" ? 1 : 0 }}
+          allowsBackForwardNavigationGestures
+          injectedJavaScript={jsCode}
+          onNavigationStateChange={(navState) => {
+            if (navState.url.includes("logoutAction")) {
+              webViewRef.current?.stopLoading();
+              dispatch(signOut());
+            }
+            setCanBack((navState.canGoBack));
+          }}
+          onShouldStartLoadWithRequest={(e: any) => {
+            if (e.isTopFrame) {
+              if (e.mainDocumentURL.endsWith("pdf")) {
+                Linking.openURL(e.mainDocumentURL);
+                return false;
+              }
+            }
+            return true;
+          }}
+          onMessage={(event) => {
+            const { data } = event.nativeEvent;
+            try {
+              const { type, value } = JSON.parse(data);
+              // finish loading
+              if (type == "finished") {
+                setLoadingState("success");
+                setIsInited(true);
+              }
+              // response 
+              else if (type == "response") {
+                const { success, data } = JSON.parse(value);
+                if (!success && data?.errorCode == 14) {
+                  dispatch(signOut());
+                }
+              }
+              // pull to refresh
+              else if (type == "scroll") {
+                setIsRefreshEnabled(value === 0);
+              }
+            } 
+            catch (error) {
+
+            };
+          }}
+          onLoadStart={() => {
+            setLoadingState("loading");
+          }}
+          onLoadEnd={() => {
+            console.log("webpage finish loading");
+            if (isInited) {
+              setLoadingState("success");
+              setIsRefreshing(false);
+            }
+          }}
+          onError={() => {
+            console.log("webpage loading error");
+            setLoadingState("error");
+          }}
+        />
+        {loadingState == "loading" && 
           <View style={{ position: "absolute", width: "100%", height: "100%", alignItems: 'center', justifyContent: "center" }}>
-            <ActivityIndicator/>
+            <ActivityIndicator color={Platform.OS == "android" ? "black" : "grey"}/>
           </View>
         }
-        {isError &&
-          <View style={{ position: "absolute", width: "100%", height: "100%", alignItems: 'center', justifyContent: "center" }}>
-            <TouchableOpacity
-              onPress={() => {
-                setIsError(false);
-                setIsLoading(true);
-              }}
-            >
-              <Text>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      </View>
+      </ScrollView>
     </View>
   );
 }
